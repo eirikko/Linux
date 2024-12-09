@@ -1,0 +1,172 @@
+#!/bin/bash
+
+#Function that adds user to system
+addUser() {
+    echo "Enter preferred username:"
+    read username
+    if id "$username" &>/dev/null; then
+        echo "This username already exists: $username"
+    else
+        echo "Creating user $username."
+        echo "Enter home directory for user. Leave it blank for default configuration:"
+        read homeDirectory
+        echo "Enter default shell for user. Leave it blank for [/bin/bash]:"
+        read shell
+        #Blank input will set default values
+        if [ -z "$homeDirectory" ]; then
+            homeDirectory="/home/$username"
+        fi
+        if [ -z "$shell" ]; then
+            shell="/bin/bash"
+        fi
+        #Create user
+        useradd -m -d "$homeDirectory" -s "$shell" "$username"
+        echo "The user $username was successfully added."
+        #Set password
+        echo "Set password for $username:"
+        passwd "$username"
+        echo "Add $username to a specific group? (yes/no)"
+        read addGroup
+        if [ "$addGroup" == "yes" ]; then
+            echo "Enter group name:"
+            read groupname
+            usermod -aG "$groupname" "$username"
+            echo "$username added to $groupname."
+        fi
+    fi
+}
+#Function to configure existing user
+configureUser() {
+    echo "Enter username for configuration:"
+    read username
+    if id "$username" &>/dev/null; then
+        echo "Configuring $username"
+        echo "What do you wish to do?"
+        echo "1. Change password"
+        echo "2. Modify home directory"
+        echo "3. Change default shell"
+        echo "4. Add/remove groups"
+        echo "5. Lock/unlock account"
+        echo "Enter choice (1-5):"
+        read configChoice
+        case $configChoice in
+            1)
+                echo "Changing password for $username:"
+                passwd "$username"
+                ;;
+            2)
+                echo "Enter preferred new home directory for $username:"
+                readHomeDir
+                usermod -d "$newHomeDir" -m "$username"
+                echo "Home directory moved to $newHomeDir."
+                ;;
+            3)
+                echo "Enter preferred new default shell for $username:"
+                read newShell
+                usermod -s "$newShell" "$username"
+                echo "Default shell changed to $newshell."
+                ;;
+            4)
+                echo "Do you wish to (1) Add to group or (2) Remove from group?"
+                read groupChoice
+                echo "Enter group name:"
+                read groupname
+                if [ "$groupChoice" == "1" ]; then
+                    usermod -aG "$groupname" "$username"
+                    echo "$username has been added to $groupname."
+                elif [ "$groupChoice" == "2" ]; then
+                    gpasswd -d "$username" "$groupname"
+                    echo "$username has been removed from $groupname."
+                else
+                    echo "Invalid option!"
+                fi
+                ;;
+            5)
+                echo "Do you wish to (1) Lock or (2) Unlock the account?"
+                read lockChoice
+                if [ "$lockChoice" == 1 ]; then
+                    usermod -L "$username"
+                    echo "$username has been locked."
+                elif [ "$lockChoice" == "2" ]; then
+                    usermod -U "$username"
+                    echo "$username has been unlocked."
+                else
+                    echo "Invalid option!"
+                fi
+                ;;
+            *)
+                echo "Invalid option!"
+                ;;
+        esac
+    else
+        echo "This username is invalid!"
+    fi
+}
+#Function to check who are online
+checkOnline() {
+    echo "These users are currently online:"
+    w
+}
+#Function to get user details
+checkInfo() {
+    echo "Enter username:"
+    read username
+    if id "$username" &>/dev/null; then
+        echo "User information on $username"
+        echo "-----------------------------"
+        echo "User ID: $(id -u "$username")"
+        echo "Group ID: $(id -g "$username")"
+        echo "Groups: $(id -nG "$username")"
+        echo "Home Directory: $(getent passwd "$username" | cut -d: -f6)"
+        echo "Default Shell: $(getent passwd "$username" | cut -d: -f7)"
+        echo
+        #Password and account status
+        echo "Password and account status:"
+        chage -l "$username"
+        echo
+        #Details on last login
+        echo "Last Login:"
+        last -F "$username" | head -n 5
+        echo
+    else
+        echo "This username is invalid!"
+    fi
+}
+#Function to display system information
+systemInfo() {
+    echo "System Information"
+    echo "------------------"
+    echo "Hostname: $(hostname)"
+    echo "Uptime: $(uptime -p)"
+    echo "Operating System: $(uname -s)"
+    echo "Kernel Version: $(uname -r)"
+    echo "CPU Information:"
+    lscpu | grep 'Model name'
+    echo "Memory Usage:"
+    free -h
+    echo "Disk Usage:"
+    df -h
+}
+#Display main menu
+while true; do
+    echo
+    echo "System Administration Script"
+    echo "----------------------------"
+    echo "1. Add User"
+    echo "2. Configure User"
+    echo "3. Check Online Users"
+    echo "4. Check User Information"
+    echo "5. Display System Information"
+    echo "6. Exit"
+    echo "Pick your choice."
+    read choice
+    case $choice in
+        1) addUser ;;
+        2) configureUser ;;
+        3) checkOnline ;;
+        4) checkInfo ;;
+        5) systemInfo ;;
+        6) echo "Closing script."; exit 0 ;;
+        *) echo "Invalid option. Try again." ;;
+    esac
+done
